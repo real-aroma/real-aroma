@@ -1566,7 +1566,7 @@
         <div class="panel">
           <div class="grid-2">
             <div class="field"><label for="loginPhone">휴대전화 번호</label><input id="loginPhone" inputmode="numeric" placeholder="01045611234"></div>
-            <div class="field" style="justify-content:end"><button class="btn btn-coral" id="loginBtn" type="button">오늘 기록 시작하기</button></div>
+            <div class="field" style="justify-content:end"><button class="btn btn-coral" id="loginBtn" type="button">로그인</button></div>
           </div>
           <div id="participantInfo"></div>
           <div class="gallery-panel" id="galleryPanel">
@@ -1920,6 +1920,37 @@ async function loadMyProgress(phone){
   $('checkDetail').classList.remove('show');
   await fetchMyCerts(phone);
   renderMyProgress();
+}
+
+async function fetchMyPastPhotos(phone){
+  const {data,error}=await sb.from('certifications').select('photo_url,cert_date_key').eq('phone_id',phone).lt('cert_date_key',CHALLENGE_START).not('photo_url','is',null).order('cert_date_key',{ascending:false}).limit(20);
+  if(error){ console.warn('예전 사진 조회 실패:', error); return []; }
+  return (data||[]).map(c=>c.photo_url).filter(Boolean);
+}
+
+async function renderPreStartNotice(participant){
+  const box=$('participantInfo');
+  if(!box) return;
+
+  const start=new Date(CHALLENGE_START+'T00:00:00+09:00');
+  const startDisplay=`${start.getMonth()+1}월 ${start.getDate()}일`;
+  const name=participant.name || '참여자';
+
+  let pastPhotos=[];
+  try{ pastPhotos=await fetchMyPastPhotos(participant.phone_id); }catch(e){ console.warn(e); }
+
+  const galleryHtml=pastPhotos.length
+    ? `<div class="gallery-panel show" style="margin-top:16px;"><h3>📷 나의 지난 라운드 인증사진</h3><div class="gallery-track-wrap"><div class="gallery-track">${[...pastPhotos,...pastPhotos].map(url=>`<a href="${url}" target="_blank"><img class="gallery-img" src="${url}" alt="나의 지난 라운드 인증사진"></a>`).join('')}</div></div></div>`
+    : '';
+
+  box.innerHTML=`
+    <div class="returning-card show">
+      <b>${esc(name)}님, 로그인 확인되었습니다.</b><br>
+      <span>REAL 뉴로터치 챌린지는 ${esc(startDisplay)}부터 새로 시작됩니다. 그 전까지는 오늘 기록을 남길 수 없어요.</span><br><br>
+      <a href="#hallOfFame" class="btn btn-soft">🏅 명예의 전당 보러 가기</a>
+    </div>
+    ${galleryHtml}
+  `;
 }
 
 function showMyCheckDetail(day){
@@ -2835,6 +2866,27 @@ document.addEventListener('DOMContentLoaded', function(){
       if(document.getElementById('certName')) document.getElementById('certName').value = currentParticipant.name || '';
       if(document.getElementById('certSponsor')) document.getElementById('certSponsor').value = currentParticipant.sponsor_name || '';
 
+      localStorage.setItem('real8_last_phone_id', phone);
+      localStorage.setItem('real8_last_name', currentParticipant.name || '');
+      try{ updateReturningUserUI(); }catch(e){ console.warn(e); }
+
+      const todayKey = dateKey(kstNow());
+      const todayDay = (typeof challengeDay === 'function') ? challengeDay(todayKey) : null;
+
+      // 로그인은 항상 되지만, 챌린지 진행 기간이 아니면 오늘 기록 대신 예전 사진/명예의 전당 안내를 보여줍니다.
+      if(!todayDay){
+        if(certForm) certForm.classList.add('hidden');
+        try{ await renderPreStartNotice(currentParticipant); }catch(e){ console.warn(e); }
+        try{ await loadMyProgress(phone); }catch(e){ console.warn(e); }
+        try{ await loadGallery(); }catch(e){ console.warn(e); }
+        const info = document.getElementById('participantInfo');
+        if(info) info.scrollIntoView({behavior:'smooth', block:'start'});
+        return;
+      }
+
+      const info = document.getElementById('participantInfo');
+      if(info) info.innerHTML = '';
+
       const sponsorText = currentParticipant.sponsor_name ? '(' + currentParticipant.sponsor_name + ')' : '';
       if(document.getElementById('welcomeName')){
         document.getElementById('welcomeName').textContent = (currentParticipant.name || '참여자') + sponsorText + '님, 오늘 기록을 시작합니다.';
@@ -2843,7 +2895,6 @@ document.addEventListener('DOMContentLoaded', function(){
         document.getElementById('todayDayView').textContent = '';
       }
 
-      const todayKey = dateKey(kstNow());
       let alreadyDoneToday = false;
       try{
         if(typeof hasToday === 'function'){
@@ -2868,10 +2919,6 @@ document.addEventListener('DOMContentLoaded', function(){
         alert(msg);
       }
 
-      localStorage.setItem('real8_last_phone_id', phone);
-      localStorage.setItem('real8_last_name', currentParticipant.name || '');
-
-      try{ updateReturningUserUI(); }catch(e){ console.warn(e); }
       try{ await loadMyProgress(phone); }catch(e){ console.warn(e); }
       try{ await loadGallery(); }catch(e){ console.warn(e); }
       try{ await showEncouragement(phone); }catch(e){ console.warn(e); }
