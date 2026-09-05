@@ -1746,6 +1746,8 @@ const SUPABASE_ANON_KEY = "sb_publishable_RqaNb-uzab4kQVkWlEER6w_4kiBQfs1";
 const MANAGER_CODES = ["do2167","do1","do2","do3","do4"];
 const CHALLENGE_START = '2026-09-07';
 const CHALLENGE_DAYS = 30;
+// 명예의 전당은 각 기수에서 이 일수 이상 기록한 참여자만 보여줍니다.
+const HALL_OF_FAME_MIN_DAYS = 20;
 // 마감된 기수를 여기에 추가하면 명예의 전당(#hallOfFame)에 그 기수의 순위와 인증사진이 남습니다.
 // 각 기수는 "시작일"만 정확하면 됩니다 - 그 기수의 기록은 "다음 기수 시작일(또는 아직 다음 기수가 없으면 현재
 // CHALLENGE_START) 전날까지" 범위로 자동으로 묶입니다. 가장 오래된 기수의 start는 실제 정확한 시작일을 몰라도
@@ -2164,12 +2166,14 @@ async function loadHallOfFame(){
   const htmlByRound=rounds.map((round,idx)=>{
     const nextStart=idx+1<rounds.length ? rounds[idx+1].start : CHALLENGE_START;
     const roundCerts=allCerts.filter(c=>c.cert_date_key && c.cert_date_key>=round.start && c.cert_date_key<nextStart);
-    const rows=buildRankings(roundCerts,allApps);
+    // 명예의 전당은 이 기수에서 HALL_OF_FAME_MIN_DAYS일 이상 기록한 참여자만 남깁니다.
+    const rows=buildRankings(roundCerts,allApps).filter(r=>r.total>=HALL_OF_FAME_MIN_DAYS);
     const rowsHtml=rows.length
       ? rows.map((r,i)=>`<tr><td><span class="rank-no ${rankClass(i)}">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.sponsor_name||'-')}</td><td>${r.total}일${r.total>=round.days?' 🎉 완주':''}</td></tr>`).join('')
-      : '<tr><td colspan="4">기록이 없습니다.</td></tr>';
+      : `<tr><td colspan="4">${HALL_OF_FAME_MIN_DAYS}일 이상 기록한 참여자가 아직 없습니다.</td></tr>`;
 
-    const imgs=roundCerts.filter(c=>c.photo_url && c.gallery_hidden !== true).map(c=>c.photo_url).slice(0,20);
+    const qualifiedPhones=new Set(rows.map(r=>r.phone_id));
+    const imgs=roundCerts.filter(c=>qualifiedPhones.has(c.phone_id) && c.photo_url && c.gallery_hidden !== true).map(c=>c.photo_url).slice(0,20);
     const galleryHtml=imgs.length
       ? `<div class="gallery-panel show" style="margin-top:18px;"><div class="gallery-track-wrap"><div class="gallery-track">${[...imgs,...imgs].map(url=>`<a href="${url}" target="_blank"><img class="gallery-img" src="${url}" alt="${esc(round.label)} 인증사진"></a>`).join('')}</div></div></div>`
       : '';
