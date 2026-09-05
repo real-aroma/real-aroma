@@ -1747,9 +1747,12 @@ const MANAGER_CODES = ["do2167","do1","do2","do3","do4"];
 const CHALLENGE_START = '2026-09-07';
 const CHALLENGE_DAYS = 30;
 // 마감된 기수를 여기에 추가하면 명예의 전당(#hallOfFame)에 그 기수의 순위와 인증사진이 남습니다.
-// 새 챌린지를 시작할 때: 방금 끝난 기수를 아래 배열에 추가하고, 위 CHALLENGE_START/CHALLENGE_DAYS를 새 라운드 값으로 바꿉니다.
+// 각 기수는 "시작일"만 정확하면 됩니다 - 그 기수의 기록은 "다음 기수 시작일(또는 아직 다음 기수가 없으면 현재
+// CHALLENGE_START) 전날까지" 범위로 자동으로 묶입니다. 가장 오래된 기수의 start는 실제 정확한 시작일을 몰라도
+// 안전하도록 충분히 이른 날짜로 두면, 그 이전에 쌓인 모든 기록이 전부 그 기수로 잡힙니다.
+// 새 챌린지를 시작할 때: 방금 끝난 기수를 아래 배열 맨 뒤에 추가하고, 위 CHALLENGE_START/CHALLENGE_DAYS를 새 라운드 값으로 바꿉니다.
 const HALL_OF_FAME_ROUNDS = [
-  { gen:1, label:'1기', start:'2026-07-20', days:30 }
+  { gen:1, label:'1기', start:'2000-01-01', days:30 }
 ];
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -2152,13 +2155,13 @@ async function loadHallOfFame(){
 
   const allCerts=certs.data||[];
   const allApps=apps.data||[];
+  const rounds=HALL_OF_FAME_ROUNDS;
 
-  // 최신 기수가 위로 오도록 표시합니다.
-  container.innerHTML=HALL_OF_FAME_ROUNDS.slice().reverse().map(round=>{
-    const roundCerts=allCerts.filter(c=>{
-      const diff=daysBetween(round.start,c.cert_date_key);
-      return diff>=0 && diff<round.days;
-    });
+  // 각 기수의 범위는 [이 기수의 시작일, 다음 기수 시작일) 로 계산합니다(마지막 기수는 현재 CHALLENGE_START가 다음 경계).
+  // cert_date_key가 'YYYY-MM-DD' 형식이라 문자열 비교로도 날짜 순서가 정확히 맞습니다.
+  const htmlByRound=rounds.map((round,idx)=>{
+    const nextStart=idx+1<rounds.length ? rounds[idx+1].start : CHALLENGE_START;
+    const roundCerts=allCerts.filter(c=>c.cert_date_key && c.cert_date_key>=round.start && c.cert_date_key<nextStart);
     const rows=buildRankings(roundCerts,allApps);
     const rowsHtml=rows.length
       ? rows.map((r,i)=>`<tr><td><span class="rank-no ${rankClass(i)}">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.sponsor_name||'-')}</td><td>${r.total}일${r.total>=round.days?' 🎉 완주':''}</td></tr>`).join('')
@@ -2180,7 +2183,10 @@ async function loadHallOfFame(){
         </div>
         ${galleryHtml}
       </div>`;
-  }).join('');
+  });
+
+  // 최신 기수가 위로 오도록 표시 순서만 뒤집습니다(범위 계산은 이미 끝났으므로 안전합니다).
+  container.innerHTML=htmlByRound.slice().reverse().join('');
 }
 
 
