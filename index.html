@@ -1461,7 +1461,7 @@
         <a href="#apply" id="topApplyBtn">신청하기</a>
         <a href="#certify">오늘 기록</a>
         <a href="#publicRanking">TOP 5</a>
-        <a href="#archive">지난 기록</a>
+        <a href="#hallOfFame">명예의 전당</a>
         <a href="#admin">관리자</a>
       </nav>
     </div>
@@ -1673,25 +1673,14 @@
       </div>
     </section>
 
-    <section id="archive">
+    <section id="hallOfFame">
       <div class="container">
         <div class="section-title">
-          <div class="tag">지난 챌린지 기록</div>
-          <h2>지난 라운드 보관함</h2>
-          <p>새 챌린지가 시작되며 순위와 오늘 기록은 새로 시작되지만, 이전 라운드의 순위와 인증사진은 이곳에 그대로 남겨둡니다.</p>
+          <div class="tag">명예의 전당</div>
+          <h2>REAL 뉴로터치 명예의 전당</h2>
+          <p>새 챌린지가 시작되며 순위와 오늘 기록은 기수마다 새로 시작되지만, 마무리된 기수의 순위와 인증사진은 이곳 명예의 전당에 그대로 남겨둡니다.</p>
         </div>
-        <div class="panel">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>순위</th><th>참여자</th><th>스폰서</th><th>누적일수</th></tr></thead>
-              <tbody id="archiveRankBody"><tr><td colspan="4">지난 기록을 불러오는 중입니다.</td></tr></tbody>
-            </table>
-          </div>
-          <div class="gallery-panel" id="archiveGalleryPanel" style="margin-top:24px;">
-            <h3>📷 지난 라운드 인증사진</h3>
-            <div class="gallery-track-wrap"><div class="gallery-track" id="archiveGalleryTrack"></div></div>
-          </div>
-        </div>
+        <div id="hallOfFameBody"><div class="panel"><p class="muted">명예의 전당을 불러오는 중입니다.</p></div></div>
       </div>
     </section>
 
@@ -1757,6 +1746,11 @@ const SUPABASE_ANON_KEY = "sb_publishable_RqaNb-uzab4kQVkWlEER6w_4kiBQfs1";
 const MANAGER_CODES = ["do2167","do1","do2","do3","do4"];
 const CHALLENGE_START = '2026-09-07';
 const CHALLENGE_DAYS = 30;
+// 마감된 기수를 여기에 추가하면 명예의 전당(#hallOfFame)에 그 기수의 순위와 인증사진이 남습니다.
+// 새 챌린지를 시작할 때: 방금 끝난 기수를 아래 배열에 추가하고, 위 CHALLENGE_START/CHALLENGE_DAYS를 새 라운드 값으로 바꿉니다.
+const HALL_OF_FAME_ROUNDS = [
+  { gen:1, label:'1기', start:'2026-07-20', days:30 }
+];
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CONDITION_LABELS = {
@@ -2100,43 +2094,62 @@ async function loadPublicRanking(){
   ]);
   const body=$('publicRankBody');
   if(apps.error||certs.error){ body.innerHTML='<tr><td colspan="4">순위 데이터를 불러오지 못했습니다.</td></tr>'; return; }
-  // 이번 챌린지(CHALLENGE_START~) 기록만으로 순위를 새로 집계합니다. 지난 라운드 기록은 #archive에서 확인할 수 있습니다.
+  // 이번 챌린지(CHALLENGE_START~) 기록만으로 순위를 새로 집계합니다. 마감된 기수의 기록은 #hallOfFame(명예의 전당)에서 확인할 수 있습니다.
   const currentCerts=(certs.data||[]).filter(c=>challengeDay(c.cert_date_key)!==null);
   const rows=buildRankings(currentCerts,apps.data||[]).slice(0,5);
   body.innerHTML = rows.length ? rows.map((r,i)=>`<tr><td><span class="rank-no ${rankClass(i)}">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.sponsor_name||'-')}</td><td>${r.total}일</td></tr>`).join('') : '<tr><td colspan="4">아직 공개할 순위 데이터가 없습니다.</td></tr>';
 }
 
-async function loadArchive(){
-  const rankBody=$('archiveRankBody');
-  const galleryPanel=$('archiveGalleryPanel');
-  const galleryTrack=$('archiveGalleryTrack');
-  if(!rankBody) return;
+async function loadHallOfFame(){
+  const container=$('hallOfFameBody');
+  if(!container) return;
 
-  const [apps,certs]=await Promise.all([
-    sb.from('applications').select('*'),
-    sb.from('certifications').select('*').lt('cert_date_key',CHALLENGE_START)
-  ]);
-
-  if(apps.error||certs.error){
-    rankBody.innerHTML='<tr><td colspan="4">지난 기록을 불러오지 못했습니다.</td></tr>';
+  if(!HALL_OF_FAME_ROUNDS.length){
+    container.innerHTML='<div class="panel"><p class="muted">아직 마감된 기수가 없습니다.</p></div>';
     return;
   }
 
-  // 이번 챌린지(CHALLENGE_START) 이전에 쌓인 기록을 지난 라운드 보관함으로 보여줍니다.
-  const archiveCerts=(certs.data||[]).filter(c=>challengeDay(c.cert_date_key)===null);
-  const rows=buildRankings(archiveCerts,apps.data||[]);
-  rankBody.innerHTML = rows.length
-    ? rows.map((r,i)=>`<tr><td><span class="rank-no ${rankClass(i)}">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.sponsor_name||'-')}</td><td>${r.total}일</td></tr>`).join('')
-    : '<tr><td colspan="4">지난 라운드 기록이 아직 없습니다.</td></tr>';
+  const [apps,certs]=await Promise.all([
+    sb.from('applications').select('*'),
+    sb.from('certifications').select('*')
+  ]);
 
-  const imgs=archiveCerts.filter(c=>c.photo_url && c.gallery_hidden !== true).map(c=>c.photo_url).slice(0,30);
-  if(imgs.length && galleryPanel && galleryTrack){
-    const doubled=[...imgs,...imgs];
-    galleryTrack.innerHTML=doubled.map(url=>`<a href="${url}" target="_blank"><img class="gallery-img" src="${url}" alt="지난 라운드 인증사진"></a>`).join('');
-    galleryPanel.classList.add('show');
-  }else if(galleryPanel){
-    galleryPanel.classList.remove('show');
+  if(apps.error||certs.error){
+    container.innerHTML='<div class="panel"><p class="muted">명예의 전당을 불러오지 못했습니다.</p></div>';
+    return;
   }
+
+  const allCerts=certs.data||[];
+  const allApps=apps.data||[];
+
+  // 최신 기수가 위로 오도록 표시합니다.
+  container.innerHTML=HALL_OF_FAME_ROUNDS.slice().reverse().map(round=>{
+    const roundCerts=allCerts.filter(c=>{
+      const diff=daysBetween(round.start,c.cert_date_key);
+      return diff>=0 && diff<round.days;
+    });
+    const rows=buildRankings(roundCerts,allApps);
+    const rowsHtml=rows.length
+      ? rows.map((r,i)=>`<tr><td><span class="rank-no ${rankClass(i)}">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.sponsor_name||'-')}</td><td>${r.total}일${r.total>=round.days?' 🎉 완주':''}</td></tr>`).join('')
+      : '<tr><td colspan="4">기록이 없습니다.</td></tr>';
+
+    const imgs=roundCerts.filter(c=>c.photo_url && c.gallery_hidden !== true).map(c=>c.photo_url).slice(0,20);
+    const galleryHtml=imgs.length
+      ? `<div class="gallery-panel show" style="margin-top:18px;"><div class="gallery-track-wrap"><div class="gallery-track">${[...imgs,...imgs].map(url=>`<a href="${url}" target="_blank"><img class="gallery-img" src="${url}" alt="${esc(round.label)} 인증사진"></a>`).join('')}</div></div></div>`
+      : '';
+
+    return `
+      <div class="panel" style="margin-bottom:24px;">
+        <h3>🏅 ${esc(round.label)} 명예의 전당</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>순위</th><th>참여자</th><th>스폰서</th><th>누적일수</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+        ${galleryHtml}
+      </div>`;
+  }).join('');
 }
 
 
@@ -2647,7 +2660,7 @@ document.querySelectorAll('.admin-tab').forEach(btn=>btn.onclick=()=>{document.q
 buildMyDayButtons();
 updateReturningUserUI();
 loadPublicRanking();
-loadArchive();
+loadHallOfFame();
 sb.channel('ranking-realtime').on('postgres_changes',{event:'*',schema:'public',table:'certifications'},loadPublicRanking).on('postgres_changes',{event:'*',schema:'public',table:'applications'},loadPublicRanking).subscribe();
 </script>
 
