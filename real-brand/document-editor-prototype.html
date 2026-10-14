@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>REAL EDU OFFICE · 문서 작성 시제품</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,"Noto Sans KR",sans-serif;background:#faf7f0;color:#26382b;margin:0}header{background:#496149;color:white;padding:20px 5vw}main{max-width:1120px;margin:auto;padding:24px 16px}h1{font-size:26px;margin:0}h2{font-size:20px;margin:0 0 18px}p{line-height:1.6}.notice{background:#fff0d4;border:1px solid #d8ae71;padding:13px;border-radius:12px;margin-bottom:18px}.layout{display:grid;grid-template-columns:minmax(290px,420px) 1fr;gap:18px}.panel{padding:20px;border:1px solid #e2e5df;background:white;border-radius:14px}label{font-size:13px;font-weight:650;display:block;margin:12px 0 4px}input,textarea,select{font:inherit;width:100%;padding:9px 10px;border:1px solid #becbbd;border-radius:8px;background:white}textarea{min-height:100px;resize:vertical}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button{font:inherit;cursor:pointer;border-radius:9px;padding:10px 15px;background:#496149;color:white;border:0}button.secondary{background:#e7eee5;color:#26382b}.preview{border:1px solid #ddd;background:#fff;padding:26px;min-height:480px}.preview h2{text-align:center;font-size:25px}.preview table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #b8c2b5;padding:9px;text-align:left}th{background:#f1f4ef}.muted{color:#6a766d;font-size:13px}.total{font-weight:750;text-align:right;font-size:18px}.hidden{display:none}.small{font-size:13px;color:#6a766d}.field{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:780px){.layout{grid-template-columns:1fr}.preview{padding:16px}}@media print{body{background:white}header,.formPanel,.notice,.actions,.small{display:none!important}.layout{display:block}.panel{border:0;padding:0}.preview{border:0;padding:0;min-height:0}main{padding:0}@page{size:A4;margin:17mm}}
+</style></head><body>
+<header><h1>REAL EDU OFFICE</h1><div>교육계획서 · 견적서 자동 작성 및 수동 수정 — 개발용 시제품</div></header>
+<main>
+<div class="notice"><strong>테스트 전용입니다.</strong> 로그인·서버 저장·파일 첨부·이메일 전송은 없습니다. 입력한 정보는 이 화면에서만 유지되며, 개인정보·사업자번호·실제 계좌정보·직인 이미지는 넣지 마세요.</div>
+<div class="layout"><div class="panel formPanel"><h2>문서 정보 입력</h2>
+<label for="kind">문서 종류</label><select id="kind"><option value="quote">견적서</option><option value="plan">교육계획서</option></select>
+<label for="course">교육 제목</label><input id="course" value="아로마 힐링 클래스">
+<label for="org">교육 기관</label><input id="org" placeholder="예: ○○복지관">
+<div class="twocol"><div><label for="date">교육 날짜</label><input id="date" type="date"></div><div><label for="duration">교육 시간(분)</label><input id="duration" type="number" min="1" value="120"></div></div>
+<div class="twocol"><div><label for="people">교육 인원</label><input id="people" type="number" min="0" value="15"></div><div><label for="materials">1인 재료비(원)</label><input id="materials" type="number" min="0" value="8000"></div></div>
+<div class="twocol"><div><label for="fee">강사비(원)</label><input id="fee" type="number" min="0" value="120000"></div><div><label for="other">기타 비용(원)</label><input id="other" type="number" min="0" value="0"></div></div>
+<label for="vat">부가세 처리</label><select id="vat"><option value="0">미포함 (별도 세무 검토)</option><option value="0.1">전체 금액에 10% 별도 계산 (예시)</option></select>
+<label for="issuer">발행 상호 (예시 값만)</label><input id="issuer" placeholder="강사별 사업자 상호">
+<label for="manager">강사명</label><input id="manager" placeholder="담당 강사">
+<label for="objective">교육목표 — 직접 수정</label><textarea id="objective">아로마테라피의 기본 원리와 안전한 활용법을 이해하고, 간단한 향기 체험을 통해 자기돌봄 방법을 익힙니다.</textarea>
+<label for="details">교육 내용 — 직접 수정</label><textarea id="details">1. 아로마테라피 기초 및 안전 안내\n2. 향기 체험과 일상 활용법\n3. 참여형 아로마 만들기\n4. 활동 정리 및 질의응답</textarea>
+<label for="notes">견적서 비고 — 직접 수정</label><textarea id="notes">교육 내용과 재료 구성은 기관 협의 후 확정합니다.</textarea>
+<div class="actions"><button id="render" type="button">문서 다시 생성</button><button id="print" class="secondary" type="button">인쇄 / PDF로 저장</button><button id="reset" class="secondary" type="button">초기화</button></div>
+<p class="small">미리보기 결과를 확인한 뒤 왼쪽 내용과 금액을 다시 바꾸면 새 문서에 반영됩니다. 브라우저 인쇄 대화상자에서 PDF 저장을 선택하세요.</p>
+</div>
+<div class="panel"><h2>실시간 문서 미리보기</h2><div id="preview" class="preview" aria-live="polite"></div><p class="small">전자직인 삽입·본인 확인·발송은 백엔드 인증 구현 후 연결합니다.</p></div></div></main>
+<script>
+(function(){
+"use strict";
+const keys=["kind","course","org","date","duration","people","materials","fee","other","vat","issuer","manager","objective","details","notes"];
+const el=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString("ko-KR")+"원";
+const num=id=>Math.max(0,Number(el(id).value)||0);
+const clean=id=>el(id).value.trim();
+function node(tag,text){const e=document.createElement(tag);e.textContent=text;return e;}
+function row(table,label,value){const tr=document.createElement("tr");tr.append(node("th",label),node("td",value));table.append(tr);}
+function build(){
+ const p=el("preview");p.replaceChildren();
+ const kind=clean("kind");
+ p.append(node("h2",kind==="quote"?"견 적 서":"교 육 계 획 서"));
+ p.append(node("p","작성일: "+new Date().toLocaleDateString("ko-KR")));
+ const t=document.createElement("table");
+ row(t,"교육명",clean("course")||"미입력");
+ row(t,"교육 기관",clean("org")||"미입력");
+ row(t,"교육 날짜",clean("date")||"미정");
+ row(t,"교육 시간",num("duration")+"분");
+ row(t,"대상 인원",num("people")+"명");
+ row(t,"담당 강사",clean("manager")||"미정");
+ row(t,"발행 상호",clean("issuer")||"미정");
+ p.append(t);
+ if(kind==="quote"){
+ const sub=num("fee")+num("people")*num("materials")+num("other");
+ const cost=document.createElement("table");
+ row(cost,"강사비",fmt(num("fee")));
+ row(cost,"재료비",fmt(num("people")*num("materials"))+" ("+num("people")+"명 × "+fmt(num("materials"))+")");
+ row(cost,"기타 비용",fmt(num("other")));
+ if(Number(clean("vat"))>0) row(cost,"부가세 10% (예시)",fmt(sub*.1));
+ p.append(cost);
+ const total=node("p","합계: "+fmt(sub*(1+Number(clean("vat")))));total.className="total";p.append(total);
+ p.append(node("p",clean("notes")||""));
+ p.append(node("p","발행자 직인: 실제 운영 버전에서 본인 인증 후 적용"));
+ }else{
+ for(const [title,id] of [["교육목표","objective"],["세부 교육내용","details"]]){
+ p.append(node("h3",title));const div=node("div",clean(id)||"내용 미입력");div.className="field";p.append(div);
+ }
+ }
+}
+el("render").addEventListener("click",build);
+el("print").addEventListener("click",()=>window.print());
+el("reset").addEventListener("click",()=>{for(const id of keys){const input=el(id);if(input.tagName==="TEXTAREA")input.value="";else if(input.tagName==="SELECT")input.selectedIndex=0;else input.value="";}build();});
+for(const id of keys){el(id).addEventListener("input",build);el(id).addEventListener("change",build);}
+build();
+})();
+</script></body></html>
