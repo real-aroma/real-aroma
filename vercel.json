@@ -1,5 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/aroma",
+      "destination": "https://real-aroma-eight-experience.gidal9955.chatgpt.site/aroma"
+    },
+    {
+      "source": "/aroma/:path*",
+      "destination": "https://real-aroma-eight-experience.gidal9955.chatgpt.site/aroma/:path*"
+    }
+  ]
 }

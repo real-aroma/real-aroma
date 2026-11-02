@@ -1513,6 +1513,7 @@
         <a href="#certify">오늘 기록</a>
         <a href="#publicRanking">TOP 5</a>
         <a href="#hallOfFame">명예의 전당</a>
+        <a href="#aromaExperience">8종 체험</a>
         <a href="#admin">관리자</a>
       </nav>
     </div>
@@ -1753,17 +1754,27 @@
       </div>
     </section>
 
+    <section id="aromaExperience">
+      <div class="container">
+        <div class="section-title"><div class="tag">AROMA EXPERIENCE</div><h2>아로마 8종 체험</h2><p>향기로 만나는 나를 위한 쉼. 담당 사업자를 선택하고 체험을 신청해 주세요.</p></div>
+        <div class="cards">
+          <div class="card"><h3>체험 신청하기</h3><p>이름과 연락처를 남겨주시면 담당 사업자가 체험 일정과 장소를 안내해 드립니다.</p><a class="btn btn-primary" href="/aroma">8종 체험 신청</a></div>
+          <div class="card"><h3>사업자 전용 관리</h3><p>내 신청 링크를 복사하고, 전용 QR 체험권과 나에게 배정된 신청 명단을 확인하세요.</p><a class="btn btn-soft" href="/aroma/admin">신청 링크 · 명단 관리</a></div>
+          <div class="card"><h3>하나의 통합 로그인</h3><p>사업자별 동일한 비밀번호로 챌린지와 체험 신청을 관리합니다. 한 번 로그인하면 두 관리 화면을 오갈 수 있어요.</p><a class="btn btn-soft" href="#admin">챌린지 관리</a></div>
+        </div>
+      </div>
+    </section>
     <section id="admin">
       <div class="container">
         <div class="section-title">
           <div class="tag">관리자</div>
           <h2>관리자 페이지</h2>
-          <p>관리자 코드를 입력하면 신청자 승인, 전체 순위, 인증 내역을 확인할 수 있습니다.</p>
+          <p>8종 체험 관리와 같은 비밀번호로 로그인하세요. 각 사업자는 담당 기록을, 총관리자는 전체 기록을 확인합니다.</p><p id="managerIdentityLabel"></p><a class="btn btn-soft" href="/aroma/admin">8종 체험 · 신청 링크 관리로 이동</a>
         </div>
         <div class="panel">
           <div id="adminLogin">
             <div class="grid-2">
-              <div class="field"><label for="managerCode">관리자 코드</label><input id="managerCode" type="password" placeholder="관리자 코드 입력"></div>
+              <div class="field"><label for="managerOwner">사업자</label><select id="managerOwner"><option value="">총관리자</option><option value="jeon-eunmi">전은미</option><option value="kim-geumyeon">김금연</option><option value="bae-sujeong">배수정</option><option value="kim-ila">김일아</option><option value="kwon-hyesuk">권혜숙</option><option value="yu-jeongyeon">유정연</option><option value="yu-minjeong">유민정</option><option value="seong-hyangmi">성향미</option></select></div><div class="field"><label for="managerCode">통합 비밀번호</label><input id="managerCode" type="password" autocomplete="current-password" placeholder="사업자별 비밀번호 입력"></div>
               <div class="field" style="justify-content:end"><button class="btn btn-primary" id="managerLoginBtn" type="button">관리자 접속</button></div>
             </div>
             <div class="error" id="adminError"></div>
@@ -1812,7 +1823,7 @@
 <script>
 const SUPABASE_URL = "https://tdipltjwuuvvwkblxbso.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_RqaNb-uzab4kQVkWlEER6w_4kiBQfs1";
-const MANAGER_CODES = ["do2167","do1","do2","do3","do4"];
+let managerIdentity = null;
 const CHALLENGE_START = '2026-09-07';
 const CHALLENGE_DAYS = 30;
 // 명예의 전당은 각 기수에서 이 일수 이상 기록한 참여자만 보여줍니다.
@@ -2270,11 +2281,33 @@ function statusKo(status){
   return '대기';
 }
 
+function managerTable(table){
+  const query={table,action:'select',filters:[]};
+  const chain={
+    select(columns='*'){query.columns=columns;return chain},
+    eq(column,value){query.filters.push({op:'eq',column,value});return chain},
+    in(column,value){query.filters.push({op:'in',column,value});return chain},
+    order(column,options={}){query.order={column,ascending:options.ascending!==false};return chain},
+    update(values){query.action='update';query.values=values;return chain},
+    delete(){query.action='delete';return chain},
+    maybeSingle(){query.single=true;return chain},
+    then(resolve,reject){return fetch('/aroma/api/challenge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(query)}).then(async response=>{const result=await response.json();if(!response.ok)return {data:null,error:{message:result.error||'관리자 권한을 확인해 주세요.'}};return result}).catch(error=>({data:null,error:{message:error.message}})).then(resolve,reject)}
+  };return chain;
+}
+async function showUnifiedManager(identity){
+  managerIdentity=identity;isManager=true;
+  $('adminLogin').classList.add('hidden');$('adminPanel').classList.remove('hidden');
+  $('managerIdentityLabel').textContent=(identity.master?'총관리자':identity.name||$('managerOwner').selectedOptions[0].textContent)+'로 로그인했습니다.';
+  $('adminError').style.display='none';await loadAdminData();
+}
+async function unifiedManagerLogin(){
+  try{const response=await fetch('/aroma/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:$('managerOwner').value,password:$('managerCode').value.trim()})});const identity=await response.json();if(!response.ok)throw Error(identity.error||'로그인하지 못했습니다.');$('managerCode').value='';await showUnifiedManager(identity)}catch(error){$('adminError').textContent=error.message;$('adminError').style.display='block'}
+}
 async function loadAdminData(){
   const [apps,certs,reviews]=await Promise.all([
-    sb.from('applications').select('*').in('status',['pending','approved']).order('created_at',{ascending:false}),
-    sb.from('certifications').select('*').order('cert_date_key',{ascending:false}),
-    sb.from('final_reviews').select('*').order('created_at',{ascending:false})
+    managerTable('applications').select('*').in('status',['pending','approved']).order('created_at',{ascending:false}),
+    managerTable('certifications').select('*').order('cert_date_key',{ascending:false}),
+    managerTable('final_reviews').select('*').order('created_at',{ascending:false})
   ]);
   if(apps.error||certs.error||reviews.error){
     console.error('관리자 데이터 조회 실패 - applications:', apps.error, 'certifications:', certs.error, 'final_reviews:', reviews.error);
@@ -2338,7 +2371,7 @@ async function loadAdminData(){
 window.setAppStatus=async function(phone,status){
   if(status !== 'approved' && status !== 'pending') status = 'pending';
 
-  const {error}=await sb.from('applications').update({status}).eq('phone_id',phone);
+  const {error}=await managerTable('applications').update({status}).eq('phone_id',phone);
   if(error){
     alert('상태 변경 실패');
     console.error(error);
@@ -2361,14 +2394,14 @@ window.deleteApplication=async function(phone,name){
   let hiddenOk = false;
 
   // 1차: 실제 삭제 시도
-  const del = await sb.from('applications').delete().eq('phone_id', phone);
+  const del = await managerTable('applications').delete().eq('phone_id', phone);
   if(!del.error){
     deletedOk = true;
   } else {
     console.warn('실제 삭제 실패. deleted 상태로 숨김 처리 시도:', del.error);
 
     // 2차: delete 권한 정책이 없을 때 status를 deleted로 변경하여 목록에서 숨김
-    const hide = await sb.from('applications').update({status:'deleted'}).eq('phone_id', phone);
+    const hide = await managerTable('applications').update({status:'deleted'}).eq('phone_id', phone);
     if(!hide.error){
       hiddenOk = true;
     } else {
@@ -2392,7 +2425,7 @@ window.deleteApplication=async function(phone,name){
 
 
 window.editApplication=async function(phone){
-  const {data, error}=await sb.from('applications').select('*').eq('phone_id',phone).maybeSingle();
+  const {data, error}=await managerTable('applications').select('*').eq('phone_id',phone).maybeSingle();
 
   if(error || !data){
     alert('신청자 정보를 불러오지 못했습니다.');
@@ -2421,7 +2454,7 @@ window.editApplication=async function(phone){
 
   // 전화번호가 변경되는 경우 중복 확인
   if(newPhone !== phone){
-    const dup = await sb.from('applications').select('phone_id,name').eq('phone_id',newPhone).maybeSingle();
+    const dup = await managerTable('applications').select('phone_id,name').eq('phone_id',newPhone).maybeSingle();
     if(dup.error){
       alert('전화번호 중복 확인 중 오류가 발생했습니다.');
       console.error(dup.error);
@@ -2440,7 +2473,7 @@ window.editApplication=async function(phone){
     sponsor_name:newSponsor.trim()
   };
 
-  const result = await sb.from('applications').update(updatePayload).eq('phone_id',phone);
+  const result = await managerTable('applications').update(updatePayload).eq('phone_id',phone);
 
   if(result.error){
     alert('수정 저장 중 오류가 발생했습니다.');
@@ -2470,7 +2503,7 @@ window.toggleGalleryPhoto=async function(certId, hidden){
     btn.textContent = '처리 중...';
   }
 
-  const {error}=await sb.from('certifications').update({gallery_hidden:hidden}).eq('id',certId);
+  const {error}=await managerTable('certifications').update({gallery_hidden:hidden}).eq('id',certId);
 
   if(error){
     if(btn){
@@ -2482,7 +2515,7 @@ window.toggleGalleryPhoto=async function(certId, hidden){
     return;
   }
 
-  const check = await sb.from('certifications').select('id,gallery_hidden').eq('id',certId).maybeSingle();
+  const check = await managerTable('certifications').select('id,gallery_hidden').eq('id',certId).maybeSingle();
 
   if(check.error || !check.data || check.data.gallery_hidden !== hidden){
     if(btn){
@@ -2771,12 +2804,10 @@ $('saveFinalReview')?.addEventListener('click', async ()=>{
   }
 });
 
-$('managerLoginBtn').onclick=async()=>{
-  if(!MANAGER_CODES.includes($('managerCode').value.trim())){ $('adminError').textContent='관리자 코드가 올바르지 않습니다.'; $('adminError').style.display='block'; return; }
-  isManager=true; $('adminLogin').classList.add('hidden'); $('adminPanel').classList.remove('hidden'); await loadAdminData();
-};
+$('managerLoginBtn').onclick=unifiedManagerLogin;
+$('managerCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();unifiedManagerLogin()}});
 $('adminRefresh').onclick=loadAdminData;
-$('adminLogout').onclick=()=>{isManager=false; $('adminPanel').classList.add('hidden'); $('adminLogin').classList.remove('hidden');};
+$('adminLogout').onclick=async()=>{await fetch('/aroma/api/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});isManager=false;managerIdentity=null;$('managerIdentityLabel').textContent='';$('adminPanel').classList.add('hidden');$('adminLogin').classList.remove('hidden');for(const id of ['appsBody','rankingBody','certsBody','reviewsBody','galleryManageGrid'])if($(id))$(id).replaceChildren();};
 document.querySelectorAll('.admin-tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.admin-pane').forEach(p=>p.classList.remove('active'));btn.classList.add('active');$(btn.dataset.pane).classList.add('active');});
 
 buildMyDayButtons();
@@ -2787,84 +2818,7 @@ sb.channel('ranking-realtime').on('postgres_changes',{event:'*',schema:'public',
 </script>
 
 <script>
-/* 관리자 접속 안전 복구 스크립트 */
-(function(){
-  const ADMIN_RESCUE_CODES = ['do2167','do1','do2','do3','do4'];
-
-  function showAdminPanel(){
-    const loginBox = document.getElementById('adminLogin');
-    const panel = document.getElementById('adminPanel');
-    const error = document.getElementById('adminError');
-
-    if(error){
-      error.textContent = '';
-      error.style.display = 'none';
-    }
-    if(loginBox) loginBox.classList.add('hidden');
-    if(panel) panel.classList.remove('hidden');
-
-    try {
-      if(typeof isManager !== 'undefined') isManager = true;
-    } catch(e) {}
-
-    setTimeout(async ()=>{
-      const loaders = [
-        'loadApplications',
-        'loadAdminRanking',
-        'loadAdminCerts',
-        'loadFinalReviews'
-      ];
-
-      for(const fnName of loaders){
-        try {
-          if(typeof window[fnName] === 'function') {
-            await window[fnName]();
-          }
-        } catch(err) {
-          console.warn(fnName + ' 로딩 실패:', err);
-        }
-      }
-
-      try {
-        if(typeof loadAdminData === 'function') {
-          await loadAdminData();
-        }
-      } catch(err) {
-        console.warn('loadAdminData 로딩 실패:', err);
-      }
-    }, 80);
-  }
-
-  function adminLoginRescue(){
-    const input = document.getElementById('managerCode');
-    const error = document.getElementById('adminError');
-    const code = (input && input.value ? input.value : '').trim();
-
-    if(!ADMIN_RESCUE_CODES.includes(code)){
-      if(error){
-        error.textContent = '관리자 코드가 올바르지 않습니다.';
-        error.style.display = 'block';
-      }
-      return;
-    }
-    showAdminPanel();
-  }
-
-  document.addEventListener('click', function(e){
-    if(e.target && e.target.id === 'managerLoginBtn'){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      adminLoginRescue();
-    }
-  }, true);
-
-  document.addEventListener('keydown', function(e){
-    if(e.target && e.target.id === 'managerCode' && e.key === 'Enter'){
-      e.preventDefault();
-      adminLoginRescue();
-    }
-  });
-})();
+fetch('/aroma/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(async response=>{if(!response.ok)return;const identity=await response.json();const names={'jeon-eunmi':'전은미','kim-geumyeon':'김금연','bae-sujeong':'배수정','kim-ila':'김일아','kwon-hyesuk':'권혜숙','yu-jeongyeon':'유정연','yu-minjeong':'유민정','seong-hyangmi':'성향미'};identity.name=names[identity.owner]||'총관리자';document.getElementById('managerOwner').value=identity.owner||'';await showUnifiedManager(identity)}).catch(()=>{});
 </script>
 
 
